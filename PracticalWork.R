@@ -1,0 +1,141 @@
+# Install required packages if needed
+source("./requirements.R")
+
+# Libraries
+library(tm)
+library(textclean)
+library(dplyr)
+library(ggplot2)
+library(ggwordcloud)
+library(udpipe)
+library(kableExtra)
+library(sentimentr)
+library(SentimentAnalysis)
+
+# Load data
+df <- read.csv('data/DuaLipa.csv')
+
+# Remove id and artist column
+df$X <- NULL
+df$Artist <- NULL
+
+# Last released album
+df2 <- filter(df,Album == "Future Nostalgia")
+df2[1,1]= "Don't Start Now" # Title fix
+
+# -----------------Album--------------------------
+# Read data
+CORPUS <- VCorpus(VectorSource(df2$Lyric))
+
+# Data cleaning 
+CORPUS <- tm_map(CORPUS, content_transformer(tolower))
+CORPUS <- tm_map(CORPUS, content_transformer( function(x) gsub("â???.", " ", x))) # song's fix
+CORPUS <- tm_map(CORPUS, content_transformer(function(x){replace_contraction(x)}))
+CORPUS <- tm_map(CORPUS, content_transformer(removePunctuation), ucp = F)
+CORPUS <- tm_map(CORPUS, content_transformer(removeNumbers))
+CORPUS <- tm_map(CORPUS, removeWords, stopwords("english"))
+CORPUS <- tm_map(CORPUS, stripWhitespace)
+
+# WordCloud
+tdmTR <- TermDocumentMatrix(CORPUS)
+
+freq <- findFreqTerms(tdmTR, lowfreq = 1, highfreq = Inf)
+freq <- as.matrix(tdmTR[freq,])
+freq <- as.data.frame(rowSums(freq))
+colnames(freq) <- "num"
+freq$word <- rownames(freq)
+
+options(repr.plot.width = 18, repr.plot.height = 8) 
+set.seed(5555)
+freq$angle <- 45 * sample(-2:2, nrow(freq), replace = TRUE, prob = c(1, 0, 4, 0, 1))
+
+ggplot(freq, aes(label = word,size = num, color = num, angle = angle)) +
+  geom_text_wordcloud(shape = "circle", rm_outside = TRUE, area_corr = F, rstep = .01,max_grid_size = 256,grid_size = 7,grid_margin = .4) +
+  scale_size_area(max_size = 12.5) + theme_minimal() + scale_color_gradient(low = "darkgrey", high = "#53d1b1")
+
+
+# Number of words in the album
+paste("Total words:", sum(freq$num), "; Unique words:",nrow(freq))
+
+
+# top 10 words
+matrix <- as.matrix(tdmTR) 
+words <- sort(rowSums(matrix),decreasing=TRUE) 
+df3 <- data.frame(freq=words[1:10],word = names(words[1:10]))
+barplot(df3[order(df3[,1],decreasing=FALSE),][,1],names.arg=df3[order(df3[,1],decreasing=FALSE),][,2]
+        ,col="green",xlab="Frequency",ylab="Word",main="Top 10 Album words",border="black",horiz = TRUE)
+
+
+# Types and number of words of each type in the album
+dl <- udpipe_download_model(language = "english")
+udmodel_eng <- udpipe_load_model(file = "english-ewt-ud-2.5-191206.udpipe")
+x <- udpipe_annotate(udmodel_eng, x = df2$Lyric)
+x <- as.data.frame(x)
+table(x$upos)
+
+#The first 4 cols UNSHOWN are doc_id, paragraph_id, sentence_id and sentence
+kable_styling(kable(x[1:20, c(5:9)]),font_size = 7)
+kable_styling(kable(x[1:20, c(10:14)]),font_size = 7) #Remaining cols
+
+# -----------------Song--------------------------
+# Song classification
+
+# sentiments less than zero is negative, 0 is neutral, and greater than zero positive polarity
+s1 <- sentiment(df2$Lyric)
+
+sentiment <- analyzeSentiment(df2$Lyric)
+
+song <- data.frame(Title=df2$Title,sentimentr=s1$sentiment,SentimentAnalysis=sentiment$SentimentQDAP,
+                 SentimentAnalysisDir=convertToDirection(sentiment$SentimentQDAP))
+song
+
+# WordCloud, number of words and top 10 by song
+j<-1
+for (i in df2$Lyric) {
+  print(df2$Title[j])
+  # Read data
+  CORPUSSong <- VCorpus(VectorSource(i))
+  
+  # Cleaning 
+  CORPUSSong <- tm_map(CORPUSSong, content_transformer(tolower))
+  CORPUSSong <- tm_map(CORPUSSong, content_transformer( function(x) gsub("â???.", " ", x))) # song's fix
+  CORPUSSong <- tm_map(CORPUSSong, content_transformer(function(x){replace_contraction(x)}))
+  CORPUSSong <- tm_map(CORPUSSong, content_transformer(removePunctuation), ucp = F)
+  CORPUSSong <- tm_map(CORPUSSong, content_transformer(removeNumbers))
+  CORPUSSong <- tm_map(CORPUSSong, removeWords, stopwords("english"))
+  CORPUSSong <- tm_map(CORPUSSong, stripWhitespace)
+  
+  
+  # WordCloud by song
+  tdmTRSong<- TermDocumentMatrix(CORPUSSong)
+
+  freqSong <- findFreqTerms(tdmTRSong, lowfreq = 1, highfreq = Inf)
+  freqSong <- as.matrix(tdmTRSong[freqSong,])
+  freqSong <- as.data.frame(rowSums(freqSong))
+  colnames(freqSong) <- "num"
+  freqSong$word <- rownames(freqSong)
+  
+
+  options(repr.plot.width = 18, repr.plot.height = 8) 
+  set.seed(5555)
+  freqSong$angle <- 45 * sample(-2:2, nrow(freqSong), replace = TRUE, prob = c(1, 0, 4, 0, 1))
+  
+  print("WordCloud")
+  print(ggplot(freqSong, aes(label = word,size = num, color = num, angle = angle)) +
+    geom_text_wordcloud(shape = "circle", rm_outside = TRUE, area_corr = F,rstep = .01,max_grid_size = 256,grid_size = 7,grid_margin = .4) +
+    scale_size_area(max_size = 12.5) + theme_minimal() + scale_color_gradient(low = "darkgrey", high = "#53d1b1"))
+  
+  # Number of words in the song
+   print(paste("Total words:", sum(freqSong$num), "; Unique words:",nrow(freqSong)))
+   
+  # top 10 song words
+  matrixSong <- as.matrix(tdmTRSong) 
+  wordsSong <- sort(rowSums(matrixSong),decreasing=TRUE) 
+  dfSong <- data.frame(freq=wordsSong[1:10],word = names(wordsSong[1:10]))
+  barplot(dfSong[order(dfSong[,1],decreasing=FALSE),][,1],names.arg=dfSong[order(dfSong[,1],decreasing=FALSE),][,2]
+          ,col="blue",xlab="Frequency",ylab="Word",main="Top 10 Song words",border="black",horiz = FALSE)
+
+  j <- j+1
+
+}
+
