@@ -100,8 +100,8 @@ table(x$upos)
 #### Plot it with library kableExtra
 ```{r typeWordsPlot}
 #The first 4 cols UNSHOWN are doc_id, paragraph_id, sentence_id and sentence
-kable_styling(kable(x[1:20, c(5:9)]),font_size = 7)
-kable_styling(kable(x[1:20, c(10:14)]),font_size = 7) #Remaining cols
+kable_styling(kable(x[1:20, c(5:9)]),font_size = 12)
+kable_styling(kable(x[1:20, c(10:14)]),font_size = 12) #Remaining cols
 
 ```
 
@@ -120,8 +120,8 @@ song
 ```
 
 ### Individual song analysis
-For each song, we calculate the word cloud, the total and unique number of words and the top 10 frequent words.
-```{r}
+For each song, we calculate the word cloud, the total and unique number of words, the top 10 frequent words and type of words.
+```{r indSongs}
 # WordCloud, number of words and top 10 by song
 j<-1
 for (i in df2$Lyric) {
@@ -167,8 +167,11 @@ for (i in df2$Lyric) {
   dfSong <- data.frame(freq=wordsSong[1:10],word = names(wordsSong[1:10]))
   barplot(dfSong[order(dfSong[,1],decreasing=FALSE),][,1],names.arg=dfSong[order(dfSong[,1],decreasing=FALSE),][,2]
           ,col="blue",xlab="Frequency",ylab="Word",main="Top 10 Song words",border="black",horiz = FALSE)
+  
+  xsong <- udpipe_annotate(udmodel_eng, x = i)
+  xsong <- as.data.frame(xsong)
+  print(table(xsong$upos))
+  
   j <- j+1
 }
 ```
-
-

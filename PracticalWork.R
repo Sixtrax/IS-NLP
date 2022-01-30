@@ -74,8 +74,8 @@ x <- as.data.frame(x)
 table(x$upos)
 
 #The first 4 cols UNSHOWN are doc_id, paragraph_id, sentence_id and sentence
-kable_styling(kable(x[1:20, c(5:9)]),font_size = 7)
-kable_styling(kable(x[1:20, c(10:14)]),font_size = 7) #Remaining cols
+kable_styling(kable(x[1:20, c(5:9)]),font_size = 12)
+kable_styling(kable(x[1:20, c(10:14)]),font_size = 12) #Remaining cols
 
 # -----------------Song--------------------------
 # Song classification
@@ -92,7 +92,8 @@ song
 # WordCloud, number of words and top 10 by song
 j<-1
 for (i in df2$Lyric) {
-  print(df2$Title[j])
+  print(paste("Song:",df2$Title[j]))
+  
   # Read data
   CORPUSSong <- VCorpus(VectorSource(i))
   
@@ -120,7 +121,6 @@ for (i in df2$Lyric) {
   set.seed(5555)
   freqSong$angle <- 45 * sample(-2:2, nrow(freqSong), replace = TRUE, prob = c(1, 0, 4, 0, 1))
   
-  print("WordCloud")
   print(ggplot(freqSong, aes(label = word,size = num, color = num, angle = angle)) +
     geom_text_wordcloud(shape = "circle", rm_outside = TRUE, area_corr = F,rstep = .01,max_grid_size = 256,grid_size = 7,grid_margin = .4) +
     scale_size_area(max_size = 12.5) + theme_minimal() + scale_color_gradient(low = "darkgrey", high = "#53d1b1"))
@@ -134,8 +134,11 @@ for (i in df2$Lyric) {
   dfSong <- data.frame(freq=wordsSong[1:10],word = names(wordsSong[1:10]))
   barplot(dfSong[order(dfSong[,1],decreasing=FALSE),][,1],names.arg=dfSong[order(dfSong[,1],decreasing=FALSE),][,2]
           ,col="blue",xlab="Frequency",ylab="Word",main="Top 10 Song words",border="black",horiz = FALSE)
+  
+  xsong <- udpipe_annotate(udmodel_eng, x = i)
+  xsong <- as.data.frame(xsong)
+  print(table(xsong$upos))
 
   j <- j+1
-
 }
 
